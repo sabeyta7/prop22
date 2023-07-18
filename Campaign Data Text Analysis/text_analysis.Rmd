@@ -1,0 +1,326 @@
+---
+title: "text_analysis"
+output: html_document
+date: "2023-07-17"
+---
+Goal: Perform text analysis on Yes vs. No on Prop 22 campaigns.
+```{r setup, include=FALSE}
+library(easypackages)
+libraries("tidyverse", "rvest", "httr")
+```
+Scrape data from Supporters
+```{r}
+### Main page: https://web.archive.org/web/20201102000217/https://yeson22.com/
+main_support_url <- read_html("https://web.archive.org/web/20201102000217/https://yeson22.com/")
+
+main_support_text <- main_support_url %>%
+  html_nodes(xpath = "/html/body/section[4]/div/div/div[2]") %>%
+  html_text()
+
+main_support_1_text <- main_support_url %>%
+  html_nodes(xpath = "/html/body/section[3]/div/div/div[1]/div/div/div[2]/p") %>%
+  html_text()
+
+main_support_2_text <- main_support_url %>%
+  html_nodes(xpath = "//html/body/section[3]/div/div/div[2]/div/div/div[2]/p") %>%
+  html_text()
+
+main_support_3_text <- main_support_url %>%
+  html_nodes(xpath = "/html/body/section[3]/div/div/div[3]/div/div/div[2]/p") %>%
+  html_text()
+
+main_support_4_text <- main_support_url %>%
+  html_nodes(xpath = "/html/body/section[3]/div/div/div[4]/div/div/div[2]/p") %>%
+  html_text()
+
+main_support_5_text <- main_support_url %>%
+  html_nodes(xpath = "/html/body/section[3]/div/div/div[5]/div/div/div[2]/p") %>%
+  html_text()
+
+# Merge
+merged_main_text <- c(main_support_text, main_support_1_text, main_support_2_text, main_support_3_text, main_support_4_text, main_support_5_text)
+
+merged_main_df <- data.frame(Yes_Campaign = merged_main_text)
+
+## The Facts: https://web.archive.org/web/20201101083656/https://yeson22.com/get-the-facts/
+# Specify the URL of the archived website
+facts_url <- read_html("https://web.archive.org/web/20201104010434/https://yeson22.com/get-the-facts/")
+
+# Background Facts
+background_text <- facts_url %>%
+  html_nodes(xpath = "/html/body/main/section[2]") %>%
+  html_text()
+
+background_cleaned_text <- gsub("\\s+", " ", background_text)
+background_cleaned_text <- gsub("\n", "", background_cleaned_text)
+
+# The Problem
+problem_text <- facts_url %>%
+  html_nodes(xpath = "/html/body/main/div[1]") %>%
+  html_text()
+
+problem_cleaned_text <- gsub("\\s+", " ", problem_text)
+problem_cleaned_text <- gsub("\n", "", problem_cleaned_text)
+
+problem_2_text <- facts_url %>%
+  html_nodes(xpath = "/html/body/main/section[3]") %>%
+  html_text()
+
+problem_2_cleaned_text <- gsub("\\s+", " ", problem_2_text)
+problem_2_cleaned_text <- gsub("\n", "", problem_2_cleaned_text)
+
+# The Solution
+solution_text <- facts_url %>%
+  html_nodes(xpath = "/html/body/main/div[2]") %>%
+  html_text()
+
+solution_cleaned_text <- gsub("\\s+", " ", solution_text)
+solution_cleaned_text <- gsub("\n", "", solution_cleaned_text)
+solution_cleaned_text <- gsub("THE SOLUTION: Yes on Prop 22", "", solution_cleaned_text)
+
+# Merge
+merged_text <- c(background_cleaned_text, problem_cleaned_text, problem_2_cleaned_text, solution_cleaned_text)
+
+merged_df <- data.frame(Yes_Campaign = merged_text)
+
+# Print the scraped text content
+print(background_text)
+print(problem_text)
+print(problem_2_text)
+print(solution_text)
+
+## Driver Stories: https://web.archive.org/web/20201101010650/https://drivers.yeson22.com/driver-stories/?ref=main
+driver_stories_url <- read_html("https://web.archive.org/web/20201101010650/https://drivers.yeson22.com/driver-stories/?ref=main")
+
+driver_stories_text <- driver_stories_url %>%
+  html_nodes(xpath = "/html/body") %>%
+  html_text()
+
+# Define the pattern to match
+pattern1 <- "I'm so very grateful to have an opportunity to be in service to our community in this vulnerable time in history. Each ride I provide each meal I deliver every single person is so grateful that our companies are here to help keep them safe. I feel as if we are being given the opportunity to make the daily lives of all Americans safer and happier. We are helping communities comply with the \"Stay at Home\" policy. Are we helping save lives? I don't know, but what I do feel and see is the gratitude from our community for being in service. We are in this together. Stay safe."
+pattern2 <- "It feels great to know I can help people, to help them feel protected and to help get them the items they need or want without having to leave their homes. Someone has to help and I am willing and able."
+pattern3 <- "Hi, my name is Trisha, I'm picking up people and families in all counties. Orange County, Los Angeles, San Diego, San Bernardino and Riverside County, CA. I drive late evenings for people that are in need to get help to the airport, train stations, parents' houses or hospitals. The later the work, the more dire the need. I enjoy helping people and it gives me the flexibility to be around for my mom and kids during the days and early evenings. I've worked desk jobs and they truly are not as rewarding as this. I make a difference and I'm told daily. Please stand with us. We are becoming the go-to -in all aspects of life. We are necessary!"
+pattern4 <- "I began driving for Lyft for a number of reasons. Yes, the flexibility is very important to me because of my 13 year old son but also because I have health issues that restrict how long I can stand or sit, so being able to stop when I need to is what makes ridesharing so perfect for me. My very favorite part about driving is getting to meet so many different people and knowing that I'm getting people home safely.  I also have a 25-year-old daughter so it makes me feel so good that I offer a safe, comfortable ride to young women working late. That's really important to me because I worry about my own daughter, so knowing that I'm getting someone else's daughter home safely makes me feel good. At this stage of my life, with the health issues I have, there's no other job that would be so flexible or understanding of my physical limitations. "
+pattern5 <- "Hi my name is Raekisha and I’m a food delivery driver. I started driving part-time for extra income. I have an autistic teen daughter who works in modeling and acting. I have to chaperone her on set because she is a minor, so when she books a job, which is sometimes far in between, I work to make money for bills, food and rent. The cost of living is very high where I live. I love the flexibility of being an independent contractor because it allows me to care of my daughter and her special needs while making extra money needed to keep a roof over our heads and food in our bellies. I'm grateful for the freedom to work around my secondary schedule. Without this extra income, I could possibly lose my apartment. Thank you for listening to my story."
+pattern6 <- "I'm a 100% disabled Marine Corps veteran, and because of my disability, I'm no longer able to work in a structured environment. The few hours a week that I do ridesharing helps to connect me to my community and gives me extra money to help make ends meet and to spend on my granddaughter. The only reason that I am able to do this is that the ridesharing platform allows me to work when I am able to, and doesn’t require that I adhere to a schedule. On the days that I am unable to work, I don't."
+
+# Extract text chunks that match the pattern
+patterns <- c(pattern1, pattern2, pattern3, pattern4, pattern5)
+
+# Initialize an empty vector for the matched chunks
+matched_chunks <- character(0)
+
+# Iterate over each pattern
+for (pattern in patterns) {
+  # Extract text chunks that match the current pattern
+  matched <- str_extract_all(driver_stories_text, pattern)
+  # Append the matched chunks to the vector
+  matched_chunks <- c(matched_chunks, unlist(matched))
+}
+
+# Create a dataframe with the matched chunks
+matched_df <- data.frame(Yes_Campaign = matched_chunks)
+
+## Q&A: https://web.archive.org/web/20201101133228/https://yeson22.com/questions-and-answers/
+qanda_url <- read_html("https://web.archive.org/web/20201101133228/https://yeson22.com/questions-and-answers/")
+
+qanda_text <- qanda_url %>%
+  html_nodes(xpath = "/html/body/main/div/div/div") %>%
+  html_text()
+
+qanda_cleaned_text <- gsub("\\s+", " ", qanda_text)
+qanda_cleaned_text <- gsub("\n", "", qanda_cleaned_text)
+
+qanda_cleaned_text_df <- qanda_cleaned_text %>% as.data.frame() %>% select("Yes_Campaign" = ".")
+
+## Just for Drivers: https://web.archive.org/web/20201104022039/https://drivers.yeson22.com/?ref=main
+fordrivers_url <- read_html("https://web.archive.org/web/20201104022039/https://drivers.yeson22.com/?ref=main")
+
+fordrivers_text <- fordrivers_url %>%
+  html_nodes(xpath = "/html/body/section[2]/div[2]/div/div[1]/div/div") %>%
+  html_text()
+
+fordrivers_cleaned_text <- gsub("\\s+", " ", fordrivers_text)
+fordrivers_cleaned_text <- gsub("\n", "", fordrivers_cleaned_text)
+
+fordrivers_2_text <- fordrivers_url %>%
+  html_nodes(xpath = "/html/body/section[2]/div[2]/div/div[2]/div/div/h5") %>%
+  html_text()
+
+fordrivers_3_text <- fordrivers_url %>%
+  html_nodes(xpath = "/html/body/section[2]/div[2]/div/div[2]/div/div/p[1]") %>%
+  html_text()
+
+# Merge
+merged_fordrivers_text <- c(fordrivers_cleaned_text, fordrivers_2_text, fordrivers_3_text)
+
+merged_fordrivers_df <- data.frame(Yes_Campaign = merged_fordrivers_text)
+
+## Bind all dataframes
+yes_df <- rbind(merged_main_df, merged_df, matched_df, qanda_cleaned_text_df, merged_fordrivers_df)
+saveRDS(yes_df, file = "yes_df.csv")
+```
+Scrape data from Opponents
+```{r}
+### Main page: https://web.archive.org/web/20201101075944/https://nooncaprop22.com/
+main_oppose_url <- read_html("https://web.archive.org/web/20201101075944/https://nooncaprop22.com/")
+
+main_oppose_text <- main_oppose_url %>%
+  html_nodes(xpath = "/html/body") %>%
+  html_text()
+
+pattern1_oppose <- "Uber, Lyft, and DoorDash spent millions to write a deceptive measure and qualify it for the November ballot. They hired expensive lawyers and paid political operatives to collect enough signatures to ask California voters just one question: Will you let app companies buy themselves a special exemption in the law to exploit workers for profit?"
+pattern2_oppose <- "Current law requires app companies to provide their drivers with basic benefits and protections - like paid sick leave and unemployment insurance. But the billion-dollar companies don’t want to pay, so they’re buying themselves a special exemption in the law to avoid ever having to pay their fair share to keep drivers safe on the job."
+pattern3_oppose <- "App companies built a billion-dollar empire on the backs of drivers, while refusing to provide them with the basic protections and benefits they are owed. These drivers - 78% from communities of color, and 70% working more than 30 hours a week - are essential, helping California through the global pandemic. They deserve better."
+pattern4_oppose <- "The California Attorney General and City Attorneys from across the state are cracking down on Uber and Lyft for the years of violating workers’ rights laws, purposefully misclassifying drivers to avoid paying minimum wage, healthcare, paid sick leave, unemployment insurance, and workers’ compensation coverage."
+pattern5_oppose <- "Join tens of thousands of drivers:"
+pattern6_oppose <- "Slam the brakes on this cynical measure by voting NO on Prop 22!"
+
+# Extract text chunks that match the pattern
+patterns_oppose <- c(pattern1_oppose, pattern2_oppose, pattern3_oppose, pattern4_oppose, pattern5_oppose)
+
+# Initialize an empty vector for the matched chunks
+matched_chunks_oppose <- character(0)
+
+# Iterate over each pattern
+for (pattern in patterns_oppose) {
+  # Extract text chunks that match the current pattern
+  matched <- str_extract_all(main_oppose_text, pattern)
+  # Append the matched chunks to the vector
+  matched_chunks_oppose <- c(matched_chunks_oppose, unlist(matched))
+}
+
+# Create a dataframe with the matched chunks
+matched_df_oppose <- data.frame(No_Campaign = matched_chunks_oppose)
+
+## Decoding Prop 22: https://web.archive.org/web/20201101000523/https://nooncaprop22.com/decoding_22
+decoding_url <- read_html("https://web.archive.org/web/20201101000523/https://nooncaprop22.com/decoding_22")
+
+decoding_text <- decoding_url %>%
+  html_nodes(xpath = "/html/body") %>%
+  html_text()
+
+pattern1_decoding <- "DON’T BE FOOLED - Uber, Lyft, and DoorDash are spending millions to hide the truth from voters about who benefits from Proposition 22. They make nice-sounding claims about how their million-dollar ballot measure could help drivers - but we checked out the fine print, and it turns out the companies will be the only ones who benefit; not drivers."
+pattern2_decoding <- "Protects the choice of app-based drivers to work as independent contractors."
+pattern3_decoding <- "Creates a loophole in existing law just for app-based companies to continue exploiting their workers for profit."
+pattern4_decoding <- "Improves app-based work by requiring companies to provide new benefits."
+pattern4_decoding <- "Lets app companies boost their profits by refusing to provide their drivers with the benefits required under current law like paid sick leave, unemployment insurance, or healthcare."
+pattern5_decoding <- "Guarenteed minimum earnings"
+pattern6_decoding <- "Prop 22 only requires app companies to pay drivers for “engaged time” - when they are logged in to an app, and actively working. That means drivers would only be guaranteed $5.64 an hour under Prop 22 - far less than minimum wage."
+pattern7_decoding <- "Funding for health benefits"
+pattern8_decoding <- "Caps coverage at only a fraction of the lowest-cost Covered California plan. Bases coverage on “engaged time,” forcing drivers to work far more than 39 hours a week just to qualify for the minimum healthcare benefit."
+pattern9_decoding <- "Medical and disability coverage for on-the-job injuries"
+pattern10_decoding <- "Prop 22 allows app companies to shove the cost of medical care for on-the-job-injuries onto workers, instead of providing workers’ compensation. Gives the app companies more power to deny coverage for their drivers, and caps disability benefits."
+pattern11_decoding <- "Protections against harassment and discrimination"
+pattern12_decoding <- "Prop 22 waters down existing protections for workers against harassment and discrimination by allowing for discrimination against immigration status, and failing to include any enforcement tools."
+pattern13_decoding <- "Creates expanded public safety protections including: requiring background checks and safety courses"
+pattern14_decoding <- "Weakens current protections for riders and drivers. Eliminates required sexual harassment training as well as the obligations on Uber and Lyft to investigate both customers’ and drivers’ harassment claims."
+
+# Extract text chunks that match the pattern
+patterns_decoding <- c(pattern1_decoding, pattern2_decoding, pattern3_decoding, pattern4_decoding, pattern5_decoding, pattern6_decoding, pattern7_decoding, pattern8_decoding, pattern9_decoding, pattern10_decoding, pattern11_decoding)
+
+# Initialize an empty vector for the matched chunks
+matched_chunks_decoding <- character(0)
+
+# Iterate over each pattern
+for (pattern in patterns_decoding) {
+  # Extract text chunks that match the current pattern
+  matched <- str_extract_all(decoding_text, pattern)
+  # Append the matched chunks to the vector
+  matched_chunks_decoding <- c(matched_chunks_decoding, unlist(matched))
+}
+
+# Create a dataframe with the matched chunks
+matched_df_decoding <- data.frame(No_Campaign = matched_chunks_decoding)
+
+## Who's Behind It: https://web.archive.org/web/20201101103731/https://nooncaprop22.com/whos_behind_it
+authors_url <- read_html("https://web.archive.org/web/20201101103731/https://nooncaprop22.com/whos_behind_it")
+
+authors_text <- authors_url %>%
+  html_nodes(xpath = "/html/body/div[4]") %>%
+  html_text()
+
+pattern1_authors <- "New York - In 2015, Uber threatened to leave New York City over a dispute with the City Council."
+pattern2_authors <- "Uber never left."
+pattern3_authors <- "Austin, TX - In 2016, Uber and Lyft threatened to leave Austin if local voters failed to approve a measure they put on the ballot to loosen background check restrictions."
+pattern4_authors <- "The companies returned just six months later."
+pattern5_authors <- "Chicago, IL - In 2016, Uber threatened to abandon Chicago to avoid having to comply with the city’s licensing regulations, and Lyft joined in."
+pattern6_authors <- "Neither company ever left."
+pattern7_authors <- "Phoenix SkyHarbor Airport - In February this year, Uber and Lyft threatened to stop picking up passengers at Phoenix’s SkyHarbor airport if an increased airport pickup fee was allowed to stand. The fee went into effect on May 1 of this year."
+pattern8_authors <- "Neither company has left the market."
+pattern9_authors <- "California - Uber and Lyft have threatened to halt service in California after a judge ruled that the ride-hailing companies must immediately follow state law and classify their drivers as employees."
+pattern10_authors <- "Uber and Lyft are now banking on being able to trick California voters with Prop 22 on November 3rd."
+
+# Extract text chunks that match the pattern
+patterns_authors <- c(pattern1_authors, pattern2_authors, pattern3_authors, pattern4_authors, pattern5_authors, pattern6_authors, pattern7_authors, pattern8_authors, pattern9_authors, pattern10_authors)
+
+# Initialize an empty vector for the matched chunks
+matched_chunks_authors <- character(0)
+
+# Iterate over each pattern
+for (pattern in patterns_authors) {
+  # Extract text chunks that match the current pattern
+  matched <- str_extract_all(authors_text, pattern)
+  # Append the matched chunks to the vector
+  matched_chunks_authors <- c(matched_chunks_authors, unlist(matched))
+}
+
+# Create a dataframe with the matched chunks
+matched_df_authors <- data.frame(No_Campaign = matched_chunks_authors)
+
+## Impact on Drivers: https://web.archive.org/web/20201101103731/https://nooncaprop22.com/impact_on_drivers
+impact_url <- read_html("https://web.archive.org/web/20201101103731/https://nooncaprop22.com/impact_on_drivers")
+
+impact_text <- impact_url %>%
+  html_nodes(xpath = "/html/body") %>%
+  html_text()
+
+# Remove \t and \n from the text
+impact_cleaned_text <- gsub("[\t\n]", "", impact_text)
+
+# Find the index of the specific phrase
+split_index <- strsplit(impact_cleaned_text, "Uber, Lyft, and DoorDash have stockpiled")[[1]]
+
+# Get the portion before the specific phrase
+impact_cleaned_text <- split_index[1]
+
+# Example string with parts that need spaces
+text <- "About Prop 22Decoding Prop 22Who's behind 22?Impact on DriversNewsOur CoalitionTake ActionShare on SocialEn EspañolDonateAbout Prop 22Decoding Prop 22Who's behind 22?Impact on DriversNewsOur CoalitionTake ActionShare on SocialEn EspañolDonateImpact on DriversUber, Lyft, and DoorDash wrote Prop 22 to have clear winners and losers; and drivers won’t be getting the upper hand. See how Proposition 22 will weaken the benefits and protections drivers are entitled to under the law.Current LawUnder Prop 22WagesClear minimum wage; guaranteed overtime (150% of wages for work over 8 hours in one day, 40 hours in one week)No overtime; sub-minimum wage likelyExpense ReimbursementAll expenses reimbursed (mileage, cell phones, car cleaning, etc.) – standard IRS rate is over 57 cents per mile.Thirty cents per mile, but only mileage expenses for “engaged” miles, (e.g. no reimbursement for time without package/passenger)Workers’ CompensationNo-fault coverage for work-related injuries.Limited health coverage; not “no-fault;” easier for insurers to deny coveragePaid Family Leave8 weeks of paid leaveNonePaid Sick DaysThree days of paid leave for illness or care of family – up to 10 in some cities; additional COVID-19 leave in some citiesNoneUnemployment CompensationUp to 26 weeks of cash benefits after no-fault job lossNoneDisability InsuranceLifetime access to wage replacement if injuredLimited - caps total coverage for 104 weeksHealth InsuranceAccess to federal benefits under the Affordable Care ActLimited - calculated based on “engaged” time, reducing the benefit amountDiscriminationProtection against discrimination based on a broad set of characteristicsNo explicit protection against discrimination based on immigration statusRight to Organize and Collectively BargainCould be created under state lawNone - and may only be afforded if state passes legislation by 7/8ths majority, which is nearly impossibleProtection from RetaliationProtection from termination or discipline for reporting harassment, discrimination, or wage theftNoneHealth and SafetyRequires companies to establish injury prevention plans; give workers access to sanitation facilitiesNo similar requirement"
+
+# Insert spaces between specific parts using regular expressions
+clean_text <- gsub("(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", " ", text, perl = TRUE)
+
+## Bind all dataframes
+no_df <- rbind(matched_df_oppose, matched_df_decoding, matched_df_authors, clean_text)
+saveRDS(no_df, file = "no_df.csv")
+```
+# Topic Modeling for Yes Campaign
+```{r}
+# library(knitr) 
+# library(kableExtra) 
+# library(DT)
+# library(tm)
+# library(topicmodels)
+# library(reshape2)
+# library(ggplot2)
+# library(wordcloud)
+# library(pals)
+# library(SnowballC)
+# library(lda)
+# library(ldatuning)
+# library(flextable)
+# 
+# # Load stopwords
+# english_stopwords <- readLines("https://slcladal.github.io/resources/stopwords_en.txt", encoding = "UTF-8")
+# 
+# # create corpus object
+# corpus <- Corpus(DataframeSource(yes_df))
+# 
+# # Preprocessing chain
+# processedCorpus <- tm_map(corpus, content_transformer(tolower))
+# processedCorpus <- tm_map(processedCorpus, removeWords, english_stopwords)
+# processedCorpus <- tm_map(processedCorpus, removePunctuation, preserve_intra_word_dashes = TRUE)
+# processedCorpus <- tm_map(processedCorpus, removeNumbers)
+# processedCorpus <- tm_map(processedCorpus, stemDocument, language = "en")
+# processedCorpus <- tm_map(processedCorpus, stripWhitespace)
+```
