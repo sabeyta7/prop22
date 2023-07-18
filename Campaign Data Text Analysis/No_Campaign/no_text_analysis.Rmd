@@ -6,7 +6,7 @@ date: "2023-07-17"
 Goal: Perform text analysis on Yes vs. No on Prop 22 campaigns.
 ```{r setup, include=FALSE}
 library(easypackages)
-libraries("tidyverse", "rvest", "httr", "tm", "topicmodels", "RColorBrewer", "wordcloud", "tidytext", "syuzhet")
+libraries("tidyverse", "rvest", "httr", "tm", "topicmodels", "RColorBrewer", "wordcloud", "tidytext", "syuzhet", "gplots", "ggplot2")
 ```
 Scrape data from Opponents
 ```{r}
@@ -211,12 +211,6 @@ co_occurrence_matrix <- crossprod(dtm_matrix)
 co_occurrence_matrix <- co_occurrence_matrix / rowSums(co_occurrence_matrix)
 co_occurrence_matrix <- co_occurrence_matrix / colSums(co_occurrence_matrix)
 
-# Install required packages
-install.packages("gplots")
-
-# Load the necessary library
-library(gplots)
-
 # Create the heatmap
 heatmap(co_occurrence_matrix, 
         col = colorRampPalette(c("blue", "white", "red"))(100),  # Color scheme
@@ -227,20 +221,61 @@ heatmap(co_occurrence_matrix,
 )
 
 ## Histogram
-
 hist(top40terms, main = "Word Frequency Distribution", xlab = "Frequency", ylab = "Count")
 
 ## Bar plot
-barplot(top40terms, main = "Top 10 Most Frequent Words", xlab = "Words", ylab = "Frequency")
+top10terms <- sort(document_topics$terms[topicToViz,], decreasing=TRUE)[1:10]
 
-## Sentiment analysis
+# Create a data frame with the top 40 terms and their frequencies
+top10terms_df <- data.frame(Terms = names(top10terms), Frequency = top10terms, stringsAsFactors = FALSE)
+
+# Round the frequencies to two decimal places
+top10terms_df$Frequency <- round(top10terms_df$Frequency, 2)
+
+# Create the bar plot using ggplot2
+barchart <- ggplot(top10terms_df, aes(x = reorder(Terms, -Frequency), y = Frequency)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Top 10 Most Frequent Words", x = "Words", y = "Frequency") +
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  geom_text(aes(label = Frequency), vjust = -0.5, color = "black", size = 3)  # 
+ggsave("barchart.png", plot = barchart)
+```
+Sentiment analysis
+```{r}
+## NRC
 tidy_data <- no_df %>%
   unnest_tokens(word, No_Campaign_Cleaned)
 
 sentiment_scores <- get_nrc_sentiment(tidy_data$word)
 
-sentiment_summary <- tidy_data %>%
-  summarize(sentiment_score = sum(sentiment_scores)) # 321
+# Get total sentiment by sentiment category
+total_sentiment <- colSums(sentiment_scores)
+
+# Create dataframe
+sentiment_nrc_df <- data.frame(Sentiment_Category = colnames(sentiment_scores), Total_Sentiment = total_sentiment)
+
+# Sort dataframe by total sentiment in descending order
+sentiment_nrc_df <- sentiment_nrc_df[order(sentiment_nrc_df$Total_Sentiment, decreasing = TRUE), ]
+write.csv(sentiment_nrc_df, "sentiment_nrc_scores.csv")
+
+## Vader
+sentiment_vader <- vader_df(tidy_data$word)
+
+# Calculate total frequency for each sentiment category
+sentiment_totals <- sentiment_vader %>%
+  summarise(Total_Compound = sum(compound),
+            Total_Positive = sum(pos),
+            Total_Neutral = sum(neu),
+            Total_Negative = sum(neg))
+
+# Create a dataframe with sentiment categories and total frequencies
+sentiment_vader_df <- data.frame(Sentiment_Category = c("Compound", "Positive", "Neutral", "Negative"),
+                           Total_Frequency = c(sentiment_totals$Total_Compound,
+                                               sentiment_totals$Total_Positive,
+                                               sentiment_totals$Total_Neutral,
+                                               sentiment_totals$Total_Negative))
+write.csv(sentiment_vader_df, "sentiment_vader_scores.csv")
 ```
 
 ```{r}
@@ -254,4 +289,32 @@ print(pam_model)
 # Get the topics and associated words
 topics <- terms(pam_model, 10)
 print(topics)
+```
+
+```{r}
+### Clusters
+
+text_vector <- no_df$No_Campaign
+corpus_cluster2 <- corpus(text_vector)
+
+cluster_dfmno2 <- tokens(corpus_cluster2, remove_punct = TRUE, remove_numbers = TRUE, remove_separators = TRUE) %>%
+  tokens_remove(stopwords("english")) %>%
+  dfm()
+
+
+clusters2 <- kmeans(cluster_dfmno2, 5)
+
+clusters2
+
+get_top_words <- function(centers, cluster, n = 3){
+  (centers[cluster,] - colMeans(centers[-cluster,])) %>%
+    sort(decreasing = TRUE) %>%
+    head(n)
+}
+
+topwords <- get_top_words(clusters$centers, 1)
+
+topwords2 <- get_top_words(clusters$centers, 2)
+
+topwords3 <- get_top_words(clusters$centers, 3)
 ```
