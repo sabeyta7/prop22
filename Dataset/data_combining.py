@@ -5,12 +5,13 @@ import prettytable
 import pandas as pd
 from retrying import retry
 import os
+import numpy as np
 
 # Employment and  unemployment number by state and month
 df_1 = pd.read_csv('employ_unemploy_st_mnth.csv')
 
-# Osha inspections and wage violations by state and month
-df_2 = pd.read_pickle('labor_month_state_year')
+# Snap data
+df_2 = pd.read_csv('snap_data.csv')
 
 # Federal Reserve Economic Data (FRED) data by state and month
 df_3 = pd.read_pickle('fred_data.pkl')
@@ -76,35 +77,27 @@ state_names = {
     "WY": "Wyoming"
 }
 
-# Create a new column in df_2 that contains the state names instead of the state abbreviations.
-df_2['state_name'] = df_2['state'].map(state_names)
-
-# Combine into state_name_month_year
-df_2['state_name_month_year'] = df_2['state_name'] + ' ' + df_2['month'].astype(str) + ' ' + df_2['year'].astype(str)
 
 # Create a new column in df_1 that is state month year which will then be merged with df_2.
 df_1['state_name_month_year'] = df_1['state_area'] + ' ' + df_1['month'].astype(str) + ' ' + df_1['year'].astype(str)
 
-# Merge the two dataframes on the state_name_month_year column, and keep only data after 2012
+# Merge the two dataframes on the state_name_month_year column, and keep only data after 2011
 df_merged = pd.merge(df_1, df_2, on='state_name_month_year', how='left', indicator=True)
-df_merged = df_merged[df_merged['year_x'] >= 2012]
+df_merged = df_merged[df_merged['year_x'] >= 2011]
+df_merged['_merge1'] = df_merged['_merge']
 
 # Drop row in which _merge is not both, drop the merge column, and merge df_3 with df_merged
-df_merged = df_merged[df_merged['_merge'] == 'both']
 df_merged = df_merged.drop(['_merge'], axis=1)
 df_merged = pd.merge(df_merged, df_3, on=['state_name_month_year'], how='left', indicator=True)
-
-# Drop row in which _merge is not both, drop columns that are not needed, and rename columns
-df_merged = df_merged[df_merged['_merge'] == 'both']
-df_merged= df_merged.drop(['_merge', 'state_area', 'month_y', 'year_y', 'state-month-year', 'state', 'Year', 'Month', 'state_name', 'year-month'], axis=1)
-df_merged = df_merged.rename(columns={'month_x': 'month', 'year_x': 'year', 'State': 'state', 'Date': 'date'})
+df_merged['_merge2'] = df_merged['_merge']
+df_merged = df_merged.drop(['_merge'], axis=1)
 
 # Mergin in df_4
 df_merged = pd.merge(df_merged, df_4, on=['state_name_month_year'], how='left', indicator=True)
 
-# Drop row in which _merge is not both and dropping merged column
-df_merged = df_merged[df_merged['_merge'] == 'both']
-df_merged = df_merged.drop(['_merge'], axis=1)
+# Dropping repeat information
+df_merged = df_merged.drop(['Date_y', 'State_y', 'month_y', 'year_y'], axis=1)
+df_merged = df_merged.rename(columns={'Date_x': 'date', 'State_x': 'state', 'month_x': 'month', 'year_x': 'year'})
 
 # Reorder columns so that State is first, followed by date, month, year, and then the rest of the columns
 new_column_order = ['state', 'date', 'month', 'year'] + [col for col in df_merged.columns if col not in ['State', 'date', 'month', 'year']]
@@ -113,3 +106,31 @@ df_merged = df_merged.reindex(columns=new_column_order)
 # Identify duplicated column names and select only unique columns
 duplicated_columns = df_merged.columns[df_merged.columns.duplicated()]
 final_df = df_merged.loc[:, ~df_merged.columns.duplicated()]
+
+# Columns to replace
+columns_to_replace = ['hh_participant', 'ind_participant', 'tot_snap_cost', 'hh_snap_cost', 'ind_snap_cost', 'Average_Weekly_Hours', 'Average_Hourly_Earnings']
+
+# Add category '0' to _merge1 and _merge2 columns
+final_df['_merge1'] = final_df['_merge1'].cat.add_categories(0)
+final_df['_merge2'] = final_df['_merge2'].cat.add_categories(0)
+
+# Replace _merge1 and _merge2 with NaN where applicable
+final_df.loc[final_df['_merge1'] == 'left_only', '_merge1'] = np.nan
+final_df.loc[final_df['_merge2'] == 'left_only', '_merge2'] = np.nan
+
+# Replace specific columns with 0 where _merge1 or _merge2 is 'left_only'
+final_df.loc[final_df['_merge1'] == 'left_only', columns_to_replace] = 0
+final_df.loc[final_df['_merge2'] == 'left_only', columns_to_replace] = 0
+
+# Drop if state is NaN
+final_df = final_df.dropna(subset=['state'])
+
+# Drop _merge1, _merge2, and _merge columns
+final_df = final_df.drop(['_merge1', '_merge2', '_merge'], axis=1)
+
+# Ensuring all states are represented the correct number of times (i.e. 149 months in total)
+
+# Save final_df as a pickle file
+final_df.to_csv('state_month.csv')
+
+

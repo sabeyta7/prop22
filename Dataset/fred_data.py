@@ -124,7 +124,7 @@ df_merged = (
     dataset_02_long.merge(dataset_03_long, on='state_name_month_year', how='left')
     .drop(['Date_y', 'State_y', 'Year_y', 'Month_y'], axis=1)
     .rename(columns={'Date_x': 'Date', 'State_x': 'State', 'Year_x': 'Year', 'Month_x': 'Month'})
-    .query('Year >= 2012')
+    .query('Year >= 2011')
 )
 
 

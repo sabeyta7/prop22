@@ -15,8 +15,8 @@ dfs = [df_1, df_2]
 
 # Define a dictionary to map month abbreviations to numbers (as strings)
 month_map = {
-    'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06',
-    'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+    'Jan': '1', 'Feb': '2', 'Mar': '3', 'Apr': '4', 'May': '5', 'Jun': '6',
+    'Jul': '7', 'Aug': '8', 'Sep': '9', 'Oct': '10', 'Nov': '11', 'Dec': '12'
 }
 
 merged_df = None  # Initialize the merged DataFrame
@@ -60,3 +60,6 @@ merged_df = merged_df[cols]
 
 # Print the merged DataFrame
 merged_df.head()
+
+# Save the merged DataFrame to a CSV file
+merged_df.to_csv('medicaid_data.csv', index=False)
