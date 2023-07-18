@@ -15,6 +15,11 @@ df_2 = pd.read_pickle('labor_month_state_year')
 # Federal Reserve Economic Data (FRED) data by state and month
 df_3 = pd.read_pickle('fred_data.pkl')
 
+# Medicaid and Children's Health Insurance Program (CHIP) enrollment and change by state and month csv
+df_4 = pd.read_csv('medicaid_data.csv')
+
+
+
 
 # In df_1, the column 'state' is the state abbreviation. In df_2, the column 'state' is the state name, so we need to
 # create a dictionary to map the state abbreviations to the state names.
@@ -93,6 +98,13 @@ df_merged = pd.merge(df_merged, df_3, on=['state_name_month_year'], how='left', 
 df_merged = df_merged[df_merged['_merge'] == 'both']
 df_merged= df_merged.drop(['_merge', 'state_area', 'month_y', 'year_y', 'state-month-year', 'state', 'Year', 'Month', 'state_name', 'year-month'], axis=1)
 df_merged = df_merged.rename(columns={'month_x': 'month', 'year_x': 'year', 'State': 'state', 'Date': 'date'})
+
+# Mergin in df_4
+df_merged = pd.merge(df_merged, df_4, on=['state_name_month_year'], how='left', indicator=True)
+
+# Drop row in which _merge is not both and dropping merged column
+df_merged = df_merged[df_merged['_merge'] == 'both']
+df_merged = df_merged.drop(['_merge'], axis=1)
 
 # Reorder columns so that State is first, followed by date, month, year, and then the rest of the columns
 new_column_order = ['state', 'date', 'month', 'year'] + [col for col in df_merged.columns if col not in ['State', 'date', 'month', 'year']]
