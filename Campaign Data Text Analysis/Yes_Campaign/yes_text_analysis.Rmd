@@ -258,7 +258,7 @@ barchart <- ggplot(top10terms_df, aes(x = reorder(Terms, -Frequency), y = Freque
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   geom_text(aes(label = Frequency), vjust = -0.5, color = "black", size = 3)  # 
-ggsave("barchart.png", plot = barchart)
+ggsave("barchart.png", plot = barchart, width = 8, height = 6)
 ```
 Sentiment analysis
 ```{r}
