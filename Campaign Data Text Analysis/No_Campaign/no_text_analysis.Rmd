@@ -290,3 +290,28 @@ print(pam_model)
 topics <- terms(pam_model, 10)
 print(topics)
 ```
+### Clusters
+
+text_vector <- no_df$No_Campaign
+corpus_cluster2 <- corpus(text_vector)
+
+cluster_dfmno2 <- tokens(corpus_cluster2, remove_punct = TRUE, remove_numbers = TRUE, remove_separators = TRUE) %>%
+  tokens_remove(stopwords("english")) %>%
+  dfm()
+
+
+clusters2 <- kmeans(cluster_dfmno2, 5)
+
+clusters2
+
+get_top_words <- function(centers, cluster, n = 3){
+  (centers[cluster,] - colMeans(centers[-cluster,])) %>%
+    sort(decreasing = TRUE) %>%
+    head(n)
+}
+
+topwords <- get_top_words(clusters$centers, 1)
+
+topwords2 <- get_top_words(clusters$centers, 2)
+
+topwords3 <- get_top_words(clusters$centers, 3)
