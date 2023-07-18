@@ -1,164 +1,12 @@
 ---
-title: "text_analysis"
+title: "no_text_analysis"
 output: html_document
 date: "2023-07-17"
 ---
 Goal: Perform text analysis on Yes vs. No on Prop 22 campaigns.
 ```{r setup, include=FALSE}
 library(easypackages)
-libraries("tidyverse", "rvest", "httr")
-```
-Scrape data from Supporters
-```{r}
-### Main page: https://web.archive.org/web/20201102000217/https://yeson22.com/
-main_support_url <- read_html("https://web.archive.org/web/20201102000217/https://yeson22.com/")
-
-main_support_text <- main_support_url %>%
-  html_nodes(xpath = "/html/body/section[4]/div/div/div[2]") %>%
-  html_text()
-
-main_support_1_text <- main_support_url %>%
-  html_nodes(xpath = "/html/body/section[3]/div/div/div[1]/div/div/div[2]/p") %>%
-  html_text()
-
-main_support_2_text <- main_support_url %>%
-  html_nodes(xpath = "//html/body/section[3]/div/div/div[2]/div/div/div[2]/p") %>%
-  html_text()
-
-main_support_3_text <- main_support_url %>%
-  html_nodes(xpath = "/html/body/section[3]/div/div/div[3]/div/div/div[2]/p") %>%
-  html_text()
-
-main_support_4_text <- main_support_url %>%
-  html_nodes(xpath = "/html/body/section[3]/div/div/div[4]/div/div/div[2]/p") %>%
-  html_text()
-
-main_support_5_text <- main_support_url %>%
-  html_nodes(xpath = "/html/body/section[3]/div/div/div[5]/div/div/div[2]/p") %>%
-  html_text()
-
-# Merge
-merged_main_text <- c(main_support_text, main_support_1_text, main_support_2_text, main_support_3_text, main_support_4_text, main_support_5_text)
-
-merged_main_df <- data.frame(Yes_Campaign = merged_main_text)
-
-## The Facts: https://web.archive.org/web/20201101083656/https://yeson22.com/get-the-facts/
-# Specify the URL of the archived website
-facts_url <- read_html("https://web.archive.org/web/20201104010434/https://yeson22.com/get-the-facts/")
-
-# Background Facts
-background_text <- facts_url %>%
-  html_nodes(xpath = "/html/body/main/section[2]") %>%
-  html_text()
-
-background_cleaned_text <- gsub("\\s+", " ", background_text)
-background_cleaned_text <- gsub("\n", "", background_cleaned_text)
-
-# The Problem
-problem_text <- facts_url %>%
-  html_nodes(xpath = "/html/body/main/div[1]") %>%
-  html_text()
-
-problem_cleaned_text <- gsub("\\s+", " ", problem_text)
-problem_cleaned_text <- gsub("\n", "", problem_cleaned_text)
-
-problem_2_text <- facts_url %>%
-  html_nodes(xpath = "/html/body/main/section[3]") %>%
-  html_text()
-
-problem_2_cleaned_text <- gsub("\\s+", " ", problem_2_text)
-problem_2_cleaned_text <- gsub("\n", "", problem_2_cleaned_text)
-
-# The Solution
-solution_text <- facts_url %>%
-  html_nodes(xpath = "/html/body/main/div[2]") %>%
-  html_text()
-
-solution_cleaned_text <- gsub("\\s+", " ", solution_text)
-solution_cleaned_text <- gsub("\n", "", solution_cleaned_text)
-solution_cleaned_text <- gsub("THE SOLUTION: Yes on Prop 22", "", solution_cleaned_text)
-
-# Merge
-merged_text <- c(background_cleaned_text, problem_cleaned_text, problem_2_cleaned_text, solution_cleaned_text)
-
-merged_df <- data.frame(Yes_Campaign = merged_text)
-
-# Print the scraped text content
-print(background_text)
-print(problem_text)
-print(problem_2_text)
-print(solution_text)
-
-## Driver Stories: https://web.archive.org/web/20201101010650/https://drivers.yeson22.com/driver-stories/?ref=main
-driver_stories_url <- read_html("https://web.archive.org/web/20201101010650/https://drivers.yeson22.com/driver-stories/?ref=main")
-
-driver_stories_text <- driver_stories_url %>%
-  html_nodes(xpath = "/html/body") %>%
-  html_text()
-
-# Define the pattern to match
-pattern1 <- "I'm so very grateful to have an opportunity to be in service to our community in this vulnerable time in history. Each ride I provide each meal I deliver every single person is so grateful that our companies are here to help keep them safe. I feel as if we are being given the opportunity to make the daily lives of all Americans safer and happier. We are helping communities comply with the \"Stay at Home\" policy. Are we helping save lives? I don't know, but what I do feel and see is the gratitude from our community for being in service. We are in this together. Stay safe."
-pattern2 <- "It feels great to know I can help people, to help them feel protected and to help get them the items they need or want without having to leave their homes. Someone has to help and I am willing and able."
-pattern3 <- "Hi, my name is Trisha, I'm picking up people and families in all counties. Orange County, Los Angeles, San Diego, San Bernardino and Riverside County, CA. I drive late evenings for people that are in need to get help to the airport, train stations, parents' houses or hospitals. The later the work, the more dire the need. I enjoy helping people and it gives me the flexibility to be around for my mom and kids during the days and early evenings. I've worked desk jobs and they truly are not as rewarding as this. I make a difference and I'm told daily. Please stand with us. We are becoming the go-to -in all aspects of life. We are necessary!"
-pattern4 <- "I began driving for Lyft for a number of reasons. Yes, the flexibility is very important to me because of my 13 year old son but also because I have health issues that restrict how long I can stand or sit, so being able to stop when I need to is what makes ridesharing so perfect for me. My very favorite part about driving is getting to meet so many different people and knowing that I'm getting people home safely.  I also have a 25-year-old daughter so it makes me feel so good that I offer a safe, comfortable ride to young women working late. That's really important to me because I worry about my own daughter, so knowing that I'm getting someone else's daughter home safely makes me feel good. At this stage of my life, with the health issues I have, there's no other job that would be so flexible or understanding of my physical limitations. "
-pattern5 <- "Hi my name is Raekisha and I’m a food delivery driver. I started driving part-time for extra income. I have an autistic teen daughter who works in modeling and acting. I have to chaperone her on set because she is a minor, so when she books a job, which is sometimes far in between, I work to make money for bills, food and rent. The cost of living is very high where I live. I love the flexibility of being an independent contractor because it allows me to care of my daughter and her special needs while making extra money needed to keep a roof over our heads and food in our bellies. I'm grateful for the freedom to work around my secondary schedule. Without this extra income, I could possibly lose my apartment. Thank you for listening to my story."
-pattern6 <- "I'm a 100% disabled Marine Corps veteran, and because of my disability, I'm no longer able to work in a structured environment. The few hours a week that I do ridesharing helps to connect me to my community and gives me extra money to help make ends meet and to spend on my granddaughter. The only reason that I am able to do this is that the ridesharing platform allows me to work when I am able to, and doesn’t require that I adhere to a schedule. On the days that I am unable to work, I don't."
-
-# Extract text chunks that match the pattern
-patterns <- c(pattern1, pattern2, pattern3, pattern4, pattern5)
-
-# Initialize an empty vector for the matched chunks
-matched_chunks <- character(0)
-
-# Iterate over each pattern
-for (pattern in patterns) {
-  # Extract text chunks that match the current pattern
-  matched <- str_extract_all(driver_stories_text, pattern)
-  # Append the matched chunks to the vector
-  matched_chunks <- c(matched_chunks, unlist(matched))
-}
-
-# Create a dataframe with the matched chunks
-matched_df <- data.frame(Yes_Campaign = matched_chunks)
-
-## Q&A: https://web.archive.org/web/20201101133228/https://yeson22.com/questions-and-answers/
-qanda_url <- read_html("https://web.archive.org/web/20201101133228/https://yeson22.com/questions-and-answers/")
-
-qanda_text <- qanda_url %>%
-  html_nodes(xpath = "/html/body/main/div/div/div") %>%
-  html_text()
-
-qanda_cleaned_text <- gsub("\\s+", " ", qanda_text)
-qanda_cleaned_text <- gsub("\n", "", qanda_cleaned_text)
-
-qanda_cleaned_text_df <- qanda_cleaned_text %>% as.data.frame() %>% select("Yes_Campaign" = ".")
-
-## Just for Drivers: https://web.archive.org/web/20201104022039/https://drivers.yeson22.com/?ref=main
-fordrivers_url <- read_html("https://web.archive.org/web/20201104022039/https://drivers.yeson22.com/?ref=main")
-
-fordrivers_text <- fordrivers_url %>%
-  html_nodes(xpath = "/html/body/section[2]/div[2]/div/div[1]/div/div") %>%
-  html_text()
-
-fordrivers_cleaned_text <- gsub("\\s+", " ", fordrivers_text)
-fordrivers_cleaned_text <- gsub("\n", "", fordrivers_cleaned_text)
-
-fordrivers_2_text <- fordrivers_url %>%
-  html_nodes(xpath = "/html/body/section[2]/div[2]/div/div[2]/div/div/h5") %>%
-  html_text()
-
-fordrivers_3_text <- fordrivers_url %>%
-  html_nodes(xpath = "/html/body/section[2]/div[2]/div/div[2]/div/div/p[1]") %>%
-  html_text()
-
-# Merge
-merged_fordrivers_text <- c(fordrivers_cleaned_text, fordrivers_2_text, fordrivers_3_text)
-
-merged_fordrivers_df <- data.frame(Yes_Campaign = merged_fordrivers_text)
-
-## Bind all dataframes
-yes_df <- rbind(merged_main_df, merged_df, matched_df, qanda_cleaned_text_df, merged_fordrivers_df)
-saveRDS(yes_df, file = "yes_df.csv")
+libraries("tidyverse", "rvest", "httr", "tm", "topicmodels", "RColorBrewer", "wordcloud", "tidytext", "syuzhet")
 ```
 Scrape data from Opponents
 ```{r}
@@ -294,33 +142,116 @@ clean_text <- gsub("(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])", " ", text, pe
 no_df <- rbind(matched_df_oppose, matched_df_decoding, matched_df_authors, clean_text)
 saveRDS(no_df, file = "no_df.csv")
 ```
-# Topic Modeling for Yes Campaign
+# Topic Modeling for No Campaign
+# Resource: https://ladal.edu.au/topicmodels.html
 ```{r}
-# library(knitr) 
-# library(kableExtra) 
-# library(DT)
-# library(tm)
-# library(topicmodels)
-# library(reshape2)
-# library(ggplot2)
-# library(wordcloud)
-# library(pals)
-# library(SnowballC)
-# library(lda)
-# library(ldatuning)
-# library(flextable)
-# 
-# # Load stopwords
-# english_stopwords <- readLines("https://slcladal.github.io/resources/stopwords_en.txt", encoding = "UTF-8")
-# 
-# # create corpus object
-# corpus <- Corpus(DataframeSource(yes_df))
-# 
-# # Preprocessing chain
-# processedCorpus <- tm_map(corpus, content_transformer(tolower))
-# processedCorpus <- tm_map(processedCorpus, removeWords, english_stopwords)
-# processedCorpus <- tm_map(processedCorpus, removePunctuation, preserve_intra_word_dashes = TRUE)
-# processedCorpus <- tm_map(processedCorpus, removeNumbers)
-# processedCorpus <- tm_map(processedCorpus, stemDocument, language = "en")
-# processedCorpus <- tm_map(processedCorpus, stripWhitespace)
+no_df <- readRDS("no_df.csv")
+## Data pre-processing
+# Create a corpus from the dataframe column
+corpus <- Corpus(VectorSource(no_df$No_Campaign))
+
+# Preprocessing: remove punctuation and convert to lowercase
+corpus <- tm_map(corpus, removePunctuation, preserve_intra_word_dashes = TRUE) # Remove punctuation
+corpus <- tm_map(corpus, content_transformer(tolower)) # Change to lowercase
+corpus <- tm_map(corpus, content_transformer(function(x) gsub("\\s+", " ", x))) # Remove extra spaces
+
+# Remove stop words
+corpus <- tm_map(corpus, removeWords, stopwords("en"))
+
+# Convert back to a dataframe
+cleaned_no_text <- sapply(corpus, as.character)
+no_df$No_Campaign_Cleaned <- cleaned_no_text
+
+# Create the Document-Term Matrix
+dtm <- DocumentTermMatrix(corpus)
+
+# Convert the DTM to a matrix
+dtm_matrix <- as.matrix(dtm)
+
+## LDA
+# Create the LDA model
+lda_model <- topicmodels::LDA(dtm, k = 5)
+
+# Print the model summary
+print(lda_model)
+
+# Get the topics and associated words
+topics <- terms(lda_model, 10)
+topicNames <- apply(topics, 2, paste, collapse=" ")
+print(topics)
+
+# Examine topic-word probabilities
+lda_model@beta
+
+# Get the posterior probabilities of documents belonging to each topic
+document_topics <- posterior(lda_model, newdata = dtm)
+
+# Find the most relevant topic for each document
+most_relevant_topic <- sapply(document_topics, function(x) which.max(x))
+# 73 unique terms in the corpus; 25 topics identified
+
+# visualize topics as word cloud
+topicToViz <- 5 # change for your own topic of interest
+topicToViz <- grep('provide', topicNames)[1] # Or select a topic by a term contained in its name
+# select to 40 most probable terms from the topic by sorting the term-topic-probability vector in decreasing order
+top40terms <- sort(document_topics$terms[topicToViz,], decreasing=TRUE)[1:40]
+words <- names(top40terms)
+# extract the probabilites of each of the 40 terms
+probabilities <- sort(document_topics$terms[topicToViz,], decreasing=TRUE)[1:40]
+# visualize the terms as wordcloud
+mycolors <- brewer.pal(8, "Dark2") # Generates a vector of 5 colors from the rainbow palette
+
+png("no_wordcloud.png")
+no_wordcloud <- wordcloud(words, probabilities, random.order = FALSE, color = mycolors)
+dev.off()
+
+## Generate a heat map
+# Calculate the co-occurrence matrix
+co_occurrence_matrix <- crossprod(dtm_matrix)
+co_occurrence_matrix <- co_occurrence_matrix / rowSums(co_occurrence_matrix)
+co_occurrence_matrix <- co_occurrence_matrix / colSums(co_occurrence_matrix)
+
+# Install required packages
+install.packages("gplots")
+
+# Load the necessary library
+library(gplots)
+
+# Create the heatmap
+heatmap(co_occurrence_matrix, 
+        col = colorRampPalette(c("blue", "white", "red"))(100),  # Color scheme
+        main = "Co-occurrence Heatmap",  # Title of the heatmap
+        xlab = "Tokens",  # Label for x-axis
+        ylab = "Tokens",   # Label for y-axis
+        scale = "none"
+)
+
+## Histogram
+
+hist(top40terms, main = "Word Frequency Distribution", xlab = "Frequency", ylab = "Count")
+
+## Bar plot
+barplot(top40terms, main = "Top 10 Most Frequent Words", xlab = "Words", ylab = "Frequency")
+
+## Sentiment analysis
+tidy_data <- no_df %>%
+  unnest_tokens(word, No_Campaign_Cleaned)
+
+sentiment_scores <- get_nrc_sentiment(tidy_data$word)
+
+sentiment_summary <- tidy_data %>%
+  summarize(sentiment_score = sum(sentiment_scores)) # 321
+```
+
+```{r}
+## PAM: No longer maintained :(
+# Create the PAM model
+pam_model <- pam(dtm, k = 5, control = list(seed = 895))
+
+# Print the model summary
+print(pam_model)
+
+# Get the topics and associated words
+topics <- terms(pam_model, 10)
+print(topics)
 ```
