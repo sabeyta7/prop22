@@ -6,7 +6,7 @@ date: "2023-07-17"
 Goal: Perform text analysis on Yes vs. No on Prop 22 campaigns.
 ```{r setup, include=FALSE}
 library(easypackages)
-libraries("tidyverse", "rvest", "httr", "tm", "topicmodels", "RColorBrewer", "wordcloud", "tidytext", "syuzhet", "gplots", "vader")
+libraries("tidyverse", "rvest", "httr", "tm", "topicmodels", "RColorBrewer", "wordcloud", "tidytext", "syuzhet", "gplots", "vader", "text", "lsa", "proxy", "ggdendro")
 ```
 Scrape data from Supporters
 ```{r}
@@ -308,4 +308,20 @@ print(pam_model)
 # Get the topics and associated words
 topics <- terms(pam_model, 10)
 print(topics)
+```
+Cluster Analysis
+```{r}
+m <- as.matrix(dtm)
+
+# Calculate document similarity using cosine similarity
+distMatrix <- dist(m, method = "euclidean")
+
+# Perform hierarchical clustering
+hclust_result <- hclust(distMatrix, method = "complete")
+png("hclust.png")
+plot(hclust_result, cex = 0.9, hang = -1)
+dev.off()
+
+# Convert the hierarchical clustering result to a dendrogram object
+dendro <- as.dendrogram(hclust_result)
 ```
