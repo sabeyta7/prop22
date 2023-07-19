@@ -1,0 +1,201 @@
+---
+title: "news_text_analysis"
+output: html_document
+date: "2023-07-18"
+---
+Load packages
+```{r setup, include=FALSE}
+library(easypackages)
+libraries("tidyverse", "rvest", "httr", "pdftools", "stringr", "topicmodels", "tidytext", "tm", "RColorBrewer", "wordcloud")
+```
+Extract textual data from PDFs
+```{r}
+# Set the path to the folder containing the PDF files
+folder_path <- "/Users/elizabethchan/Documents/GitHub/prop22/News Articles"
+
+# Get the list of PDF files in the folder
+pdf_files <- list.files(folder_path, pattern = "*.pdf", full.names = TRUE)
+
+# Function to extract text from a PDF file
+extract_text <- function(file_path) {
+  text <- pdf_text(file_path)
+  text <- paste(text, collapse = " ")  # Combine text elements into a single string
+  text <- str_trim(text)  # Remove leading/trailing whitespaces
+  return(text)
+}
+
+# Create a list to store the results
+results <- list()
+
+# Loop through each PDF file, extract text, and add to the list
+for (file in pdf_files) {
+  text <- extract_text(file)
+  file_name <- basename(file)
+  results[[file_name]] <- text
+}
+
+# Convert the list to a dataframe
+df <- data.frame(id = names(results), text = unlist(results), stringsAsFactors = FALSE)
+
+# Replace id column with sequential document assignment
+df_new <- df %>% select(-id) %>% mutate(id = row_number()) %>%
+  select(id, text)
+
+# Rename the rows starting from 1
+rownames(df_new) <- 1:nrow(df_new)
+
+# Save new dataframe with all textual data
+write.csv(df_new, "textual_data.csv")
+```
+Data pre-processing
+```{r}
+textual_data <- read.csv("textual_data.csv") %>% select(-X)
+
+# Create a corpus from the dataframe column
+corpus <- Corpus(VectorSource(textual_data$text))
+corpus <- tm_map(corpus, removePunctuation, preserve_intra_word_dashes = TRUE) # Remove punctuation
+corpus <- tm_map(corpus, content_transformer(tolower)) # Change to lowercase
+corpus <- tm_map(corpus, content_transformer(function(x) gsub("\\s+", " ", x))) # Remove extra spaces
+
+# Remove stop words
+corpus <- tm_map(corpus, removeWords, stopwords("en"))
+
+# Convert back to a dataframe
+cleaned_text <- sapply(corpus, as.character)
+textual_data$text <- cleaned_text
+
+# Remove numbers using gsub
+textual_data$text <- gsub("\\d+", "", textual_data$text)
+
+# Remove specific words: pm
+textual_data$text <- gsub("\\bpm\\b", "", textual_data$text)
+
+# Remove specific symbols: "•"
+# Remove multiple symbols like • and *
+textual_data$text <- gsub("[•*]", "", textual_data$text)
+
+# Create new corpus with cleaned data
+corpus_cleaned <- Corpus(VectorSource(textual_data$text))
+```
+Topic Modeling using LDA
+```{r}
+# Create the Document-Term Matrix
+dtm <- DocumentTermMatrix(corpus_cleaned)
+
+# Convert the DTM to a matrix
+dtm_matrix <- as.matrix(dtm)
+
+## LDA
+# Create the LDA model
+lda_model <- LDA(dtm, k = 3, beta = 0.01, control = list(alpha = 0.1)) #  A low alpha value (e.g., 0.1) encourages documents to contain a mixture of fewer dominant topics; A low beta value (e.g., 0.01) makes each topic more focused on a smaller set of highly probable words
+
+# Print the model summary
+print(lda_model)
+
+# Get the topics and associated words
+topics <- terms(lda_model, 10) # Extract the top 10 terms for each of the 5 topics
+topicNames <- apply(topics, 2, paste, collapse=" ")
+print(topics)
+
+# Get the top 10 terms for each topic (word-topic probabilities) and plot it
+topic_prob <- tidy(lda_model, matrix = "beta")
+
+top_prob_terms <- topic_prob %>%
+  group_by(topic) %>%
+  slice_max(beta, n = 10) %>% 
+  ungroup() %>%
+  arrange(topic, -beta)
+
+wordtopic_prob_plot <- top_prob_terms %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(beta, term, fill = factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_y_reordered() +
+  theme_bw()
+ggsave("wordtopic_prob_plot.png", plot = wordtopic_prob_plot)
+
+# Get the per-document-per-topic probabilities and plot it
+document_prob <- tidy(lda_model, matrix = "gamma")
+document_prob
+
+## Create a wordcloud
+# Visualize the terms as wordcloud
+mycolors <- brewer.pal(8, "Dark2")
+png("wordcloud.png")
+wordcloud <- wordcloud(top_prob_terms$term, top_prob_terms$beta, random.order = FALSE, color = mycolors)
+dev.off()
+
+# Get the top 10 terms overall
+top_terms_overall <- topic_prob %>%
+  slice_max(beta, n = 10) %>% 
+  arrange(topic, -beta)
+
+wordtopic_overall_plot <- top_terms_overall %>%
+  mutate(term = reorder(term, beta)) %>%
+  ggplot(aes(beta, term)) +
+  geom_col() +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.05))) +
+  theme_bw()
+ggsave("wordtopic_overall_plot.png", plot = wordtopic_overall_plot)
+```
+Sentiment analysis
+```{r}
+tidy_data <- textual_data %>%
+  unnest_tokens(word, text)
+
+## NRC: Categorizes words into categories of positive, negative, anger, anticipation, disgust, fear, joy, sadness, surprise, and trust
+sentiment_nrc_scores <- tidy_data %>%
+    inner_join(get_sentiments("nrc"),
+               by = c("word"))
+
+# nrc scores each word as post/negative as well as other categories
+sentiment_nrc_scores$sentiment.nrc.score <- 0
+sentiment_nrc_scores$sentiment.nrc.score[sentiment_nrc_scores$sentiment == "positive"] <- 1
+sentiment_nrc_scores$sentiment.nrc.score[sentiment_nrc_scores$sentiment == "negative"] <- -1
+
+# sentiment_nrc_scores <- sentiment_nrc_scores %>%
+#   group_by(id) %>%
+#   mutate(sentiment = sum(sentiment.nrc.score[which(sentiment == "positive")]) - sum(sentiment.nrc.score[which(sentiment == "negative")]))
+
+# Sum sentiment scores for each document
+sentiment_nrc_scores_1 <- sentiment_nrc_scores %>% 
+    group_by(id) %>%
+    mutate(sentiment.nrc.score.total=sum(sentiment.nrc.score)) %>%
+    data.frame
+
+# Sort dataframe by total sentiment in descending order
+sentiment_nrc_scores <- sentiment_nrc_scores[order(sentiment_nrc_scores$sentiment.nrc.score.total, decreasing = TRUE), ]
+write.csv(sentiment_nrc_scores, "sentiment_nrc_scores.csv")
+```
+# Vader
+```{r}
+### Vader ###
+sentiment_vader_scores <- vader_df(tidy_data$word)
+saveasRDS(sentiment_vader_scores, "sentiment_vader_scores.RDS")
+
+# Calculate total frequency for each sentiment category
+sentiment_totals <- sentiment_vader %>%
+  summarise(Total_Compound = sum(compound),
+            Total_Positive = sum(pos),
+            Total_Neutral = sum(neu),
+            Total_Negative = sum(neg))
+
+# Create a dataframe with sentiment categories and total frequencies
+sentiment_vader_df <- data.frame(Sentiment_Category = c("Compound", "Positive", "Neutral", "Negative"),
+                                 Total_Frequency = c(sentiment_totals$Total_Compound,
+                                                     sentiment_totals$Total_Positive,
+                                                     sentiment_totals$Total_Neutral,
+                                                     sentiment_totals$Total_Negative))
+saveasRDS(sentiment_vader_df, "sentiment_vader_df.RDS")
+
+# Plot results
+sentiment_vader_plot <- ggplot(sentiment_vader_df, aes(x = Sentiment_Category, y = Total_Frequency)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Distribution of Sentiment Categories",
+       x = "Sentiment Category",
+       y = "Total Sentiment") +
+  theme_bw()
+ggsave("sentiment_vader_plot.png", plot = sentiment_vader_plot)
+```
+
