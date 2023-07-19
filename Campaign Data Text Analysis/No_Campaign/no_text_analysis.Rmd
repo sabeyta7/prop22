@@ -188,7 +188,7 @@ document_topics <- posterior(lda_model, newdata = dtm)
 
 # Find the most relevant topic for each document
 most_relevant_topic <- sapply(document_topics, function(x) which.max(x))
-# 73 unique terms in the corpus; 25 topics identified
+# 163 unique terms in the corpus; 100 topics identified
 
 # visualize topics as word cloud
 topicToViz <- 5 # change for your own topic of interest
@@ -239,7 +239,7 @@ barchart <- ggplot(top10terms_df, aes(x = reorder(Terms, -Frequency), y = Freque
   theme_bw() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   geom_text(aes(label = Frequency), vjust = -0.5, color = "black", size = 3)  # 
-ggsave("barchart.png", plot = barchart)
+ggsave("barchart.png", plot = barchart, width = 6, height = 5)
 ```
 Sentiment analysis
 ```{r}
@@ -259,6 +259,15 @@ sentiment_nrc_df <- data.frame(Sentiment_Category = colnames(sentiment_scores), 
 sentiment_nrc_df <- sentiment_nrc_df[order(sentiment_nrc_df$Total_Sentiment, decreasing = TRUE), ]
 write.csv(sentiment_nrc_df, "sentiment_nrc_scores.csv")
 
+# Plot results
+sentiment_nrc_plot <- ggplot(sentiment_nrc_df, aes(x = Sentiment_Category, y = Total_Sentiment)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Distribution of Sentiment Categories",
+       x = "Sentiment Category",
+       y = "Total Sentiment") +
+  theme_bw()
+ggsave("sentiment_nrc_plot.png", plot = sentiment_nrc_plot)
+
 ## Vader
 sentiment_vader <- vader_df(tidy_data$word)
 
@@ -276,6 +285,15 @@ sentiment_vader_df <- data.frame(Sentiment_Category = c("Compound", "Positive", 
                                                sentiment_totals$Total_Neutral,
                                                sentiment_totals$Total_Negative))
 write.csv(sentiment_vader_df, "sentiment_vader_scores.csv")
+
+# Plot results
+sentiment_vader_plot <- ggplot(sentiment_vader_df, aes(x = Sentiment_Category, y = Total_Frequency)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  labs(title = "Distribution of Sentiment Categories",
+       x = "Sentiment Category",
+       y = "Total Sentiment") +
+  theme_bw()
+ggsave("sentiment_vader_plot.png", plot = sentiment_vader_plot)
 ```
 
 ```{r}
