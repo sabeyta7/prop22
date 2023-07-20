@@ -6,7 +6,7 @@ date: "2023-07-18"
 Load packages
 ```{r setup, include=FALSE}
 library(easypackages)
-libraries("tidyverse", "rvest", "httr", "pdftools", "stringr", "topicmodels", "tidytext", "tm", "RColorBrewer", "wordcloud")
+libraries("tidyverse", "rvest", "httr", "pdftools", "stringr", "topicmodels", "tidytext", "tm", "RColorBrewer", "wordcloud", "tau")
 ```
 Extract textual data from PDFs
 ```{r}
@@ -92,8 +92,51 @@ lda_model <- LDA(dtm, k = 3, beta = 0.01, control = list(alpha = 0.1)) #  A low 
 # Print the model summary
 print(lda_model)
 
+# Get the top topics for each document
+document_topics <- topics(lda_model)
+
+# Convert the document-term matrix to a term-document matrix
+tdm <- as.TermDocumentMatrix(dtm)
+
+# Get the vocabulary of terms
+terms <- Terms(dtm)
+
+# Function to retrieve concordances for a given term
+get_concordances <- function(term, tdm, document_topics) {
+  term_indices <- which(terms == term)  # Get the term indices where the term occurs
+  concordances <- lapply(term_indices, function(term_index) {
+    doc_indices <- which(as.matrix(tdm)[term_index, ] > 0)  # Get the document indices where the term occurs
+    lapply(doc_indices, function(doc_index) {
+      doc_id <- colnames(tdm)[doc_index]  # Get the document ID
+      doc_text <- as.character(tdm[, doc_id])  # Get the document text
+      topic <- document_topics[doc_index]  # Get the topic for the document
+      conc <- textcnt(doc_text, pattern = term, window = 5)  # Get the concordances
+      return(conc)
+    })
+  })
+  return(concordances)
+}
+
+# Example usage
+term <- "proposition"
+concordances <- get_concordances(term, tdm, document_topics)
+
+# Print the concordances
+for (i in seq_along(concordances)) {
+  for (j in seq_along(concordances[[i]])) {
+    cat("\nConcordances for document", j, "in cluster", i, "\n")
+    cat(concordances[[i]][[j]], "\n")
+  }
+}
+
+
+
+
+
+
+
 # Get the topics and associated words
-topics <- terms(lda_model, 10) # Extract the top 10 terms for each of the 5 topics
+topics <- terms(lda_model, 10) # Extract the top 10 terms for each of the 3 topics
 topicNames <- apply(topics, 2, paste, collapse=" ")
 print(topics)
 
